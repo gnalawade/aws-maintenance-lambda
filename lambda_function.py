@@ -1,40 +1,41 @@
 from __future__ import print_function
 
 import boto3
-import json
 import logging
 import os
 
 from base64 import b64decode
-from urllib2 import Request, urlopen, URLError, HTTPError
 
 ENCRYPTED = os.environ['JIRA_PASS']
-DECRYPTED = boto3.client('kms').decrypt(CiphertextBlob=b64decode(ENCRYPTED))['Plaintext']
+DECRYPTED = boto3.client('kms').decrypt(
+    CiphertextBlob=b64decode(ENCRYPTED))['Plaintext']
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
+
 def lambda_handler(event, context):
     logger.info('Event: ' + str(event))
-    message = event['Records'][0]['Sns']['Message']
-    logger.info("Message: " + str(message))
 
     instance_name = ''
     instance_cluster = ''
-    logger.info(len(message))
-    instance_id = message['detail']['affectedEntities'][0]['entityValue']
-    start_time = message['detail']['startTime']
-    res = boto3.client('ec2').Instance(instance_id)
+    instance_id = event['detail']['affectedEntities'][0]['entityValue']
+    start_time = event['detail']['startTime']
+    res = boto3.resource('ec2').Instance(instance_id)
     for tags in res.tags:
         if tags['Key'] == 'Name':
             instance_name = tags['Value']
-        if tags['Key'] == 'Cluster':
+        if tags['Key'] == 'Cluster' and tags['Value'] != '':
             instance_cluster = tags['Value']
+        else:
+            instance_cluster = instance_name
     events = boto3.client('ec2').describe_instance_status(
         InstanceIds=[instance_id])
     events = events['InstanceStatuses'][0]['Events'][0]
 
-    #jira = JIRA(os.environ['JIRA_URL'],basic_auth=(os.environ['JIRA_USER'],DECRYPTED))
+    # jira = JIRA(
+    #    os.environ['JIRA_URL'],
+    #    basic_auth=(os.environ['JIRA_USER'],DECRYPTED))
 
     description = """
     h2.Notes
@@ -51,7 +52,7 @@ def lambda_handler(event, context):
         events['Code'],
         events['Description'],
         start_time,
-        message
+        event['detail']['eventDescription'][0]['latestDescription']
     )
 
     issue_data = {
@@ -64,5 +65,4 @@ def lambda_handler(event, context):
     }
 
     logger.info(issue_data)
-    #jira.create_issue(issue_data)
-
+    # jira.create_issue(issue_data)
