@@ -13,4 +13,5 @@ To use this, please follow this steps
 This function needs following policies:
 - KMS decrypt and encrypt (since I use Basic Auth for Jira Authentication)
 - EC2 describe instances and describe instances status
+- Lambda VPC role
 - Basic Lambda Execution
