@@ -3,13 +3,15 @@ from __future__ import print_function
 import boto3
 import logging
 import os
-
+from jira import JIRA
 from base64 import b64decode
 
+# aws lambda environment variables encryption using kms
 ENCRYPTED = os.environ['JIRA_PASS']
 DECRYPTED = boto3.client('kms').decrypt(
     CiphertextBlob=b64decode(ENCRYPTED))['Plaintext']
 
+# setup logger
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
@@ -33,10 +35,12 @@ def lambda_handler(event, context):
         InstanceIds=[instance_id])
     events = events['InstanceStatuses'][0]['Events'][0]
 
-    # jira = JIRA(
-    #    os.environ['JIRA_URL'],
-    #    basic_auth=(os.environ['JIRA_USER'],DECRYPTED))
+    # jira authentication
+    jira = JIRA(
+       os.environ['JIRA_URL'],
+       basic_auth=(os.environ['JIRA_USER'],DECRYPTED))
 
+    # templating jira description
     description = """
     h2.Notes
     Scheduled for *%s* (%s) at %s
@@ -55,6 +59,7 @@ def lambda_handler(event, context):
         event['detail']['eventDescription'][0]['latestDescription']
     )
 
+    # jira issue structure
     issue_data = {
         'project': {'key': os.environ['JIRA_PROJECT']},
         'summary': 'AWS Maintenance (' + instance_name + ')',
@@ -64,5 +69,6 @@ def lambda_handler(event, context):
         'labels': [instance_cluster, 'scheduled-maintenance'],
     }
 
+    # logging issue data and create issue from jira client
     logger.info(issue_data)
-    # jira.create_issue(issue_data)
+    jira.create_issue(issue_data)
