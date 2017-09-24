@@ -15,25 +15,16 @@ DECRYPTED = boto3.client('kms').decrypt(
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-
 def lambda_handler(event, context):
     logger.info('Event: ' + str(event))
 
-    instance_name = ''
-    instance_cluster = ''
-    instance_id = event['detail']['affectedEntities'][0]['entityValue']
+    instance_id = event['resources']
     start_time = event['detail']['startTime']
-    res = boto3.resource('ec2').Instance(instance_id)
-    for tags in res.tags:
-        if tags['Key'] == 'Name':
-            instance_name = tags['Value']
-        if tags['Key'] == 'Cluster' and tags['Value'] != '':
-            instance_cluster = tags['Value']
-        else:
-            instance_cluster = instance_name
-    events = boto3.client('ec2').describe_instance_status(
+    event_description = event['detail']['eventDescription'][0]['latestDescription']
+
+    instance_status = boto3.client('ec2').describe_instance_status(
         InstanceIds=[instance_id])
-    events = events['InstanceStatuses'][0]['Events'][0]
+    events = instance_status['InstanceStatuses'][0]['Events'][0]
 
     # jira authentication
     jira = JIRA(
@@ -42,31 +33,33 @@ def lambda_handler(event, context):
 
     # templating jira description
     description = """
-    h2.Notes
-    Scheduled for *%s* (%s) at %s
+    h1.Team Notes
+    - scheduled for *%s* before %s
 
+    h1.Request Details
     h2.Background
-    We got this email from AWS:
     {quote}
     %s
     {quote}
-    h2.Request
-    - stop-start instance before AWS maintenance window
+    h2.Purpose
+    To minimize disruption of service.
+
+    h2.Impact
+    Instance will be down for approximately 5-10 minutes.
     """ % (
         events['Code'],
-        events['Description'],
         start_time,
-        event['detail']['eventDescription'][0]['latestDescription']
+        event_description
     )
 
     # jira issue structure
-    issue_data = {
         'project': {'key': os.environ['JIRA_PROJECT']},
-        'summary': 'AWS Maintenance (' + instance_name + ')',
+    issue_data = {
+        'summary': 'Scheduled AWS Maintenance for ' + instance_id,
         'description': description,
         'issuetype': {'id': os.environ['JIRA_ISSUETYPE_ID']},
-        'priority': {'name': 'Medium'},
-        'labels': [instance_cluster, 'scheduled-maintenance'],
+        'priority': {'name': 'High'},
+        'labels': ['scheduled-maintenance'],
     }
 
     # logging issue data and create issue from jira client
