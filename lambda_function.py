@@ -1,10 +1,10 @@
 from __future__ import print_function
 
-import boto3
-import logging
 import os
-from jira import JIRA
+import logging
 from base64 import b64decode
+import boto3
+from jira import JIRA
 
 # aws lambda environment variables encryption using kms
 ENCRYPTED = os.environ['JIRA_PASS']
@@ -18,18 +18,18 @@ logger.setLevel(logging.INFO)
 def lambda_handler(event, context):
     logger.info('Event: ' + str(event))
 
-    instance_id = event['resources']
+    instance_ids = event['resources']
     start_time = event['detail']['startTime']
     event_description = event['detail']['eventDescription'][0]['latestDescription']
 
     instance_status = boto3.client('ec2').describe_instance_status(
-        InstanceIds=[instance_id])
+        InstanceIds=instance_ids)
     events = instance_status['InstanceStatuses'][0]['Events'][0]
 
     # jira authentication
     jira = JIRA(
-       os.environ['JIRA_URL'],
-       basic_auth=(os.environ['JIRA_USER'],DECRYPTED))
+        os.environ['JIRA_URL'],
+        basic_auth=(os.environ['JIRA_USER'], DECRYPTED))
 
     # templating jira description
     description = """
@@ -53,9 +53,9 @@ def lambda_handler(event, context):
     )
 
     # jira issue structure
-        'project': {'key': os.environ['JIRA_PROJECT']},
     issue_data = {
-        'summary': 'Scheduled AWS Maintenance for ' + instance_id,
+        'summary': 'Scheduled AWS Maintenance for ' + ''.join(instance_ids),
+        'project': {'key': os.environ['JIRA_PROJECT']},
         'description': description,
         'issuetype': {'id': os.environ['JIRA_ISSUETYPE_ID']},
         'priority': {'name': 'High'},
