@@ -1,0 +1,21 @@
+h1. Team Notes
+h2. Blockers
+- (-) approval from service team to execute preventive stop-start procedure
+
+h1. Request Details
+h2. Background
+We have received the following alert from AWS:
+{quote}
+{{ event_description }}
+{quote}
+
+h2. Purpose
+To minimize disruption to the service, we should stop and start this instance as soon as possible.
+Stopping and starting the instance should move it to different underlying hardware and clear AWS scheduled retirement event.
+
+h2. Impact
+AWS notice alerts of hardware degradation, and this instance may already be impacted.
+If you do not respond to this issue your instance will be restarted or terminated in accordance with AWS retirement schedule.
+
+If you chose to stop-start the instance ahead of schedule, the instance will be down for approximately 5-10 minutes, but in some cases might take up to 1 hour due to hardware degradation.
+After restart service should resume as normal (unless your application does not start automatically after reboot).
