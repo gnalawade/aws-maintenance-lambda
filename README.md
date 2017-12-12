@@ -15,3 +15,6 @@ This function needs following policies:
 - EC2 describe instances and describe instances status
 - Lambda VPC role
 - Basic Lambda Execution
+
+## Author
+- https://github.com/rizkidoank
